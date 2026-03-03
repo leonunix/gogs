@@ -8,7 +8,7 @@ Git Large File Storage (LFS) helps manage large binary files in Git repositories
 
 ## How it works
 
-The Git LFS client communicates with the Gogs server over HTTP/HTTPS. It uses HTTP Basic Authentication to authorize client requests. Once a request is authorized, the Git LFS client receives instructions on where to fetch or push the large file.
+The Git LFS client communicates with the Gogs server over HTTP/HTTPS or SSH. Over HTTP, it uses HTTP Basic Authentication to authorize client requests. Over SSH, the Git LFS client uses the pure SSH transfer protocol (`git-lfs-transfer`) to upload and download objects directly through the SSH connection, so no additional HTTP credentials are needed.
 
 ## Server configuration
 
@@ -34,7 +34,7 @@ OBJECTS_PATH = data/lfs-objects
 To use Git LFS with your Gogs instance, you need:
 
 - Gogs version **0.12** or later
-- [Git LFS client](https://git-lfs.github.com/) version **1.0.1** or later
+- [Git LFS client](https://git-lfs.github.com/) version **1.0.1** or later (version **3.0** or later for SSH transfer support)
 
 ## Using Git LFS
 
@@ -93,8 +93,8 @@ For a complete walkthrough, see the official [Git LFS Tutorial](https://github.c
   <Accordion title="No S3 or object storage support">
     Only local storage is supported. All LFS objects are stored on the same server where Gogs runs. Support for Object Storage Services like Amazon S3 is being tracked in [gogs/gogs#6065](https://github.com/gogs/gogs/issues/6065).
   </Accordion>
-  <Accordion title="SSH remotes use HTTP for LFS transfers">
-    When SSH is set as a remote, Git LFS objects still go through HTTP/HTTPS. Any Git LFS request will prompt for HTTP/HTTPS credentials, so a good Git credentials store is recommended.
+  <Accordion title="SSH LFS transfer requires Git LFS 3.0+">
+    The pure SSH transfer protocol (`git-lfs-transfer`) requires Git LFS client version 3.0 or later. Older clients will fall back to HTTP/HTTPS for LFS transfers even when using an SSH remote.
   </Accordion>
   <Accordion title="No file locking support">
     File locking is not supported. This feature is being tracked in [gogs/gogs#6064](https://github.com/gogs/gogs/issues/6064).

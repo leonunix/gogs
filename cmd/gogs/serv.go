@@ -15,6 +15,8 @@ import (
 
 	"gogs.io/gogs/internal/conf"
 	"gogs.io/gogs/internal/database"
+	"gogs.io/gogs/internal/lfs/transfer"
+	"gogs.io/gogs/internal/lfsx"
 )
 
 const (
@@ -143,6 +145,17 @@ func runServ(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	verb, args := parseSSHCmd(sshCmd)
+
+	// git-lfs-transfer takes an extra operation argument after the repo path:
+	//   git-lfs-transfer 'owner/repo.git' upload
+	var lfsOperation string
+	if verb == "git-lfs-transfer" {
+		if i := strings.LastIndex(args, " "); i != -1 {
+			lfsOperation = args[i+1:]
+			args = args[:i]
+		}
+	}
+
 	repoFullName := strings.ToLower(strings.Trim(args, "'"))
 	repoFields := strings.SplitN(repoFullName, "/", 2)
 	if len(repoFields) != 2 {
@@ -169,9 +182,22 @@ func runServ(ctx context.Context, cmd *cli.Command) error {
 	}
 	repo.Owner = owner
 
-	requestMode, ok := allowedCommands[verb]
-	if !ok {
-		fail("Unknown git command", "Unknown git command '%s'", verb)
+	var requestMode database.AccessMode
+	if verb == "git-lfs-transfer" {
+		switch lfsOperation {
+		case "upload":
+			requestMode = database.AccessModeWrite
+		case "download":
+			requestMode = database.AccessModeRead
+		default:
+			fail("Unknown LFS operation", "Unknown LFS operation '%s'", lfsOperation)
+		}
+	} else {
+		var ok bool
+		requestMode, ok = allowedCommands[verb]
+		if !ok {
+			fail("Unknown git command", "Unknown git command '%s'", verb)
+		}
 	}
 
 	// Prohibit push to mirror repositories.
@@ -238,6 +264,20 @@ func runServ(ctx context.Context, cmd *cli.Command) error {
 		if err = database.UpdatePublicKey(key); err != nil {
 			fail("Internal error", "UpdatePublicKey: %v", err)
 		}
+	}
+
+	// Handle LFS SSH transfer protocol.
+	if verb == "git-lfs-transfer" {
+		storagers := map[lfsx.Storage]lfsx.Storager{
+			lfsx.StorageLocal: &lfsx.LocalStorage{
+				Root:    conf.LFS.ObjectsPath,
+				TempDir: conf.LFS.ObjectsTempPath,
+			},
+		}
+		if err := transfer.Serve(ctx, os.Stdin, os.Stdout, lfsOperation, repo, lfsx.Storage(conf.LFS.Storage), storagers); err != nil {
+			fail("Internal error", "Failed to serve LFS transfer: %v", err)
+		}
+		return nil
 	}
 
 	// Special handle for Windows.
