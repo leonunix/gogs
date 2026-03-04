@@ -1,6 +1,7 @@
 package lfs
 
 import (
+	gocontext "context"
 	"net/http"
 	"strings"
 
@@ -14,6 +15,18 @@ import (
 	"gogs.io/gogs/internal/database"
 	"gogs.io/gogs/internal/lfsx"
 )
+
+type lfsContextKey int
+
+const authenticatedUserKey lfsContextKey = iota
+
+// authenticatedUser returns the authenticated user stored in the request
+// context by the authenticate middleware. This is separate from the
+// macaron-injected *database.User, which gets overridden to the repository
+// owner by the authorize middleware.
+func authenticatedUser(c *macaron.Context) *database.User {
+	return c.Req.Context().Value(authenticatedUserKey).(*database.User)
+}
 
 // RegisterRoutes registers LFS routes using given router, and inherits all
 // groups and middleware.
@@ -37,6 +50,12 @@ func RegisterRoutes(r *macaron.Router) {
 				Get(authorize(store, database.AccessModeRead), basic.serveDownload).
 				Put(authorize(store, database.AccessModeWrite), verifyContentTypeStream, basic.serveUpload)
 			r.Post("/verify", authorize(store, database.AccessModeWrite), verifyAccept, verifyContentTypeJSON, basic.serveVerify)
+		})
+		r.Group("/locks", func() {
+			r.Post("", authorize(store, database.AccessModeWrite), verifyAccept, verifyContentTypeJSON, serveLockCreate(store))
+			r.Get("", authorize(store, database.AccessModeRead), verifyAccept, serveLockList(store))
+			r.Post("/verify", authorize(store, database.AccessModeWrite), verifyAccept, verifyContentTypeJSON, serveLockVerify(store))
+			r.Post("/:id/unlock", authorize(store, database.AccessModeWrite), verifyAccept, verifyContentTypeJSON, serveLockDelete(store))
 		})
 	}, authenticate(store))
 }
@@ -95,6 +114,9 @@ func authenticate(store Store) macaron.Handler {
 
 		log.Trace("[LFS] Authenticated user: %s", user.Name)
 
+		c.Req.Request = c.Req.WithContext(
+			gocontext.WithValue(c.Req.Context(), authenticatedUserKey, user),
+		)
 		c.Map(user)
 	}
 }

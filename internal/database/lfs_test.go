@@ -99,3 +99,138 @@ func lfsGetObjectsByOIDs(t *testing.T, ctx context.Context, s *LFSStore) {
 	assert.Equal(t, repoID, objects[1].RepoID)
 	assert.Equal(t, oid2, objects[1].OID)
 }
+
+func TestLFSLock(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	t.Parallel()
+
+	ctx := context.Background()
+	s := &LFSLockStore{
+		db: newTestDB(t, "LFSLockStore"),
+	}
+
+	for _, tc := range []struct {
+		name string
+		test func(t *testing.T, ctx context.Context, s *LFSLockStore)
+	}{
+		{"CreateLock", lfsLockCreate},
+		{"GetLockByID", lfsLockGetByID},
+		{"ListLocks", lfsLockList},
+		{"DeleteLockByID", lfsLockDeleteByID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				err := clearTables(t, s.db)
+				require.NoError(t, err)
+			})
+			tc.test(t, ctx, s)
+		})
+		if t.Failed() {
+			break
+		}
+	}
+}
+
+func lfsLockCreate(t *testing.T, ctx context.Context, s *LFSLockStore) {
+	repoID := int64(1)
+	userID := int64(1)
+
+	lock, err := s.CreateLock(ctx, repoID, "path/to/file.bin", userID)
+	require.NoError(t, err)
+	assert.NotEmpty(t, lock.ID)
+	assert.Equal(t, repoID, lock.RepoID)
+	assert.Equal(t, "path/to/file.bin", lock.Path)
+	assert.Equal(t, userID, lock.UserID)
+	assert.False(t, lock.CreatedAt.IsZero())
+
+	// Creating a lock for the same path should return ErrLFSLockAlreadyExist
+	// with the existing lock attached.
+	_, err = s.CreateLock(ctx, repoID, "path/to/file.bin", userID)
+	require.True(t, IsErrLFSLockAlreadyExist(err))
+	var conflictErr ErrLFSLockAlreadyExist
+	require.ErrorAs(t, err, &conflictErr)
+	assert.Equal(t, lock.ID, conflictErr.Lock.ID)
+}
+
+func lfsLockGetByID(t *testing.T, ctx context.Context, s *LFSLockStore) {
+	repoID := int64(1)
+	userID := int64(1)
+
+	lock, err := s.CreateLock(ctx, repoID, "path/to/file.bin", userID)
+	require.NoError(t, err)
+
+	got, err := s.GetLockByID(ctx, repoID, lock.ID)
+	require.NoError(t, err)
+	assert.Equal(t, lock.ID, got.ID)
+	assert.Equal(t, lock.Path, got.Path)
+
+	// Non-existent lock
+	_, err = s.GetLockByID(ctx, repoID, "nonexistent")
+	assert.True(t, IsErrLFSLockNotExist(err))
+}
+
+func lfsLockList(t *testing.T, ctx context.Context, s *LFSLockStore) {
+	repoID := int64(1)
+	userID := int64(1)
+
+	_, err := s.CreateLock(ctx, repoID, "a.bin", userID)
+	require.NoError(t, err)
+	_, err = s.CreateLock(ctx, repoID, "b.bin", userID)
+	require.NoError(t, err)
+	_, err = s.CreateLock(ctx, repoID, "c.bin", userID)
+	require.NoError(t, err)
+
+	// List all locks
+	locks, nextCursor, err := s.ListLocks(ctx, repoID, "", "", 0)
+	require.NoError(t, err)
+	assert.Len(t, locks, 3)
+	assert.Empty(t, nextCursor)
+
+	// Filter by path
+	locks, _, err = s.ListLocks(ctx, repoID, "b.bin", "", 0)
+	require.NoError(t, err)
+	assert.Len(t, locks, 1)
+	assert.Equal(t, "b.bin", locks[0].Path)
+
+	// Pagination
+	locks, nextCursor, err = s.ListLocks(ctx, repoID, "", "", 2)
+	require.NoError(t, err)
+	assert.Len(t, locks, 2)
+	assert.NotEmpty(t, nextCursor)
+
+	locks, nextCursor, err = s.ListLocks(ctx, repoID, "", nextCursor, 2)
+	require.NoError(t, err)
+	assert.Len(t, locks, 1)
+	assert.Empty(t, nextCursor)
+}
+
+func lfsLockDeleteByID(t *testing.T, ctx context.Context, s *LFSLockStore) {
+	repoID := int64(1)
+	ownerID := int64(1)
+	otherID := int64(2)
+
+	lock, err := s.CreateLock(ctx, repoID, "path/to/file.bin", ownerID)
+	require.NoError(t, err)
+
+	// Non-owner without force should fail
+	_, err = s.DeleteLockByID(ctx, repoID, lock.ID, otherID, false)
+	assert.True(t, IsErrLFSLockUnauthorized(err))
+
+	// Owner can delete
+	deleted, err := s.DeleteLockByID(ctx, repoID, lock.ID, ownerID, false)
+	require.NoError(t, err)
+	assert.Equal(t, lock.ID, deleted.ID)
+
+	// Lock should be gone
+	_, err = s.GetLockByID(ctx, repoID, lock.ID)
+	assert.True(t, IsErrLFSLockNotExist(err))
+
+	// Force delete by non-owner
+	lock2, err := s.CreateLock(ctx, repoID, "other.bin", ownerID)
+	require.NoError(t, err)
+	deleted, err = s.DeleteLockByID(ctx, repoID, lock2.ID, otherID, true)
+	require.NoError(t, err)
+	assert.Equal(t, lock2.ID, deleted.ID)
+}

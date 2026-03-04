@@ -27,6 +27,21 @@ type Store interface {
 	// list could have fewer elements if some oids were not found.
 	GetLFSObjectsByOIDs(ctx context.Context, repoID int64, oids ...lfsx.OID) ([]*database.LFSObject, error)
 
+	// CreateLFSLock creates a file lock for the given path in a repository. It
+	// returns database.ErrLFSLockAlreadyExist if a lock already exists.
+	CreateLFSLock(ctx context.Context, repoID int64, path string, userID int64) (*database.LFSLock, error)
+	// GetLFSLockByID returns the lock with the given ID in the repository. It
+	// returns database.ErrLFSLockNotExist when not found.
+	GetLFSLockByID(ctx context.Context, repoID int64, lockID string) (*database.LFSLock, error)
+	// ListLFSLocks returns locks for a repository with optional path filter and
+	// cursor-based pagination. It returns the locks and the next cursor value.
+	ListLFSLocks(ctx context.Context, repoID int64, path, cursor string, limit int) ([]*database.LFSLock, string, error)
+	// DeleteLFSLockByID deletes a lock by ID. When force is false, only the lock
+	// owner can delete it. It returns database.ErrLFSLockNotExist when the lock
+	// is not found, or database.ErrLFSLockUnauthorized when the user is not
+	// authorized.
+	DeleteLFSLockByID(ctx context.Context, repoID int64, lockID string, userID int64, force bool) (*database.LFSLock, error)
+
 	// AuthorizeRepositoryAccess returns true if the user has as good as desired
 	// access mode to the repository.
 	AuthorizeRepositoryAccess(ctx context.Context, userID, repoID int64, desired database.AccessMode, opts database.AccessModeOptions) bool
@@ -90,6 +105,22 @@ func (*store) GetLFSObjectByOID(ctx context.Context, repoID int64, oid lfsx.OID)
 
 func (*store) GetLFSObjectsByOIDs(ctx context.Context, repoID int64, oids ...lfsx.OID) ([]*database.LFSObject, error) {
 	return database.Handle.LFS().GetObjectsByOIDs(ctx, repoID, oids...)
+}
+
+func (*store) CreateLFSLock(ctx context.Context, repoID int64, path string, userID int64) (*database.LFSLock, error) {
+	return database.Handle.LFSLocks().CreateLock(ctx, repoID, path, userID)
+}
+
+func (*store) GetLFSLockByID(ctx context.Context, repoID int64, lockID string) (*database.LFSLock, error) {
+	return database.Handle.LFSLocks().GetLockByID(ctx, repoID, lockID)
+}
+
+func (*store) ListLFSLocks(ctx context.Context, repoID int64, path, cursor string, limit int) ([]*database.LFSLock, string, error) {
+	return database.Handle.LFSLocks().ListLocks(ctx, repoID, path, cursor, limit)
+}
+
+func (*store) DeleteLFSLockByID(ctx context.Context, repoID int64, lockID string, userID int64, force bool) (*database.LFSLock, error) {
+	return database.Handle.LFSLocks().DeleteLockByID(ctx, repoID, lockID, userID, force)
 }
 
 func (*store) AuthorizeRepositoryAccess(ctx context.Context, userID, repoID int64, desired database.AccessMode, opts database.AccessModeOptions) bool {

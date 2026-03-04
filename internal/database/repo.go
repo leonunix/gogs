@@ -1701,6 +1701,7 @@ func DeleteRepository(ownerID, repoID int64) error {
 		&ProtectBranchWhitelist{RepoID: repoID},
 		&Webhook{RepoID: repoID},
 		&HookTask{RepoID: repoID},
+		&LFSLock{RepoID: repoID},
 		&LFSObject{RepoID: repoID},
 	); err != nil {
 		return errors.Newf("deleteBeans: %v", err)

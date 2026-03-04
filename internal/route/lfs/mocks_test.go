@@ -24,15 +24,24 @@ type MockStore struct {
 	// object controlling the behavior of the method
 	// AuthorizeRepositoryAccess.
 	AuthorizeRepositoryAccessFunc *StoreAuthorizeRepositoryAccessFunc
+	// CreateLFSLockFunc is an instance of a mock function object
+	// controlling the behavior of the method CreateLFSLock.
+	CreateLFSLockFunc *StoreCreateLFSLockFunc
 	// CreateLFSObjectFunc is an instance of a mock function object
 	// controlling the behavior of the method CreateLFSObject.
 	CreateLFSObjectFunc *StoreCreateLFSObjectFunc
 	// CreateUserFunc is an instance of a mock function object controlling
 	// the behavior of the method CreateUser.
 	CreateUserFunc *StoreCreateUserFunc
+	// DeleteLFSLockByIDFunc is an instance of a mock function object
+	// controlling the behavior of the method DeleteLFSLockByID.
+	DeleteLFSLockByIDFunc *StoreDeleteLFSLockByIDFunc
 	// GetAccessTokenBySHA1Func is an instance of a mock function object
 	// controlling the behavior of the method GetAccessTokenBySHA1.
 	GetAccessTokenBySHA1Func *StoreGetAccessTokenBySHA1Func
+	// GetLFSLockByIDFunc is an instance of a mock function object
+	// controlling the behavior of the method GetLFSLockByID.
+	GetLFSLockByIDFunc *StoreGetLFSLockByIDFunc
 	// GetLFSObjectByOIDFunc is an instance of a mock function object
 	// controlling the behavior of the method GetLFSObjectByOID.
 	GetLFSObjectByOIDFunc *StoreGetLFSObjectByOIDFunc
@@ -51,6 +60,9 @@ type MockStore struct {
 	// IsTwoFactorEnabledFunc is an instance of a mock function object
 	// controlling the behavior of the method IsTwoFactorEnabled.
 	IsTwoFactorEnabledFunc *StoreIsTwoFactorEnabledFunc
+	// ListLFSLocksFunc is an instance of a mock function object controlling
+	// the behavior of the method ListLFSLocks.
+	ListLFSLocksFunc *StoreListLFSLocksFunc
 	// TouchAccessTokenByIDFunc is an instance of a mock function object
 	// controlling the behavior of the method TouchAccessTokenByID.
 	TouchAccessTokenByIDFunc *StoreTouchAccessTokenByIDFunc
@@ -70,6 +82,11 @@ func NewMockStore() *MockStore {
 				return
 			},
 		},
+		CreateLFSLockFunc: &StoreCreateLFSLockFunc{
+			defaultHook: func(context.Context, int64, string, int64) (r0 *database.LFSLock, r1 error) {
+				return
+			},
+		},
 		CreateLFSObjectFunc: &StoreCreateLFSObjectFunc{
 			defaultHook: func(context.Context, int64, lfsx.OID, int64, lfsx.Storage) (r0 error) {
 				return
@@ -80,8 +97,18 @@ func NewMockStore() *MockStore {
 				return
 			},
 		},
+		DeleteLFSLockByIDFunc: &StoreDeleteLFSLockByIDFunc{
+			defaultHook: func(context.Context, int64, string, int64, bool) (r0 *database.LFSLock, r1 error) {
+				return
+			},
+		},
 		GetAccessTokenBySHA1Func: &StoreGetAccessTokenBySHA1Func{
 			defaultHook: func(context.Context, string) (r0 *database.AccessToken, r1 error) {
+				return
+			},
+		},
+		GetLFSLockByIDFunc: &StoreGetLFSLockByIDFunc{
+			defaultHook: func(context.Context, int64, string) (r0 *database.LFSLock, r1 error) {
 				return
 			},
 		},
@@ -115,6 +142,11 @@ func NewMockStore() *MockStore {
 				return
 			},
 		},
+		ListLFSLocksFunc: &StoreListLFSLocksFunc{
+			defaultHook: func(context.Context, int64, string, string, int) (r0 []*database.LFSLock, r1 string, r2 error) {
+				return
+			},
+		},
 		TouchAccessTokenByIDFunc: &StoreTouchAccessTokenByIDFunc{
 			defaultHook: func(context.Context, int64) (r0 error) {
 				return
@@ -137,6 +169,11 @@ func NewStrictMockStore() *MockStore {
 				panic("unexpected invocation of MockStore.AuthorizeRepositoryAccess")
 			},
 		},
+		CreateLFSLockFunc: &StoreCreateLFSLockFunc{
+			defaultHook: func(context.Context, int64, string, int64) (*database.LFSLock, error) {
+				panic("unexpected invocation of MockStore.CreateLFSLock")
+			},
+		},
 		CreateLFSObjectFunc: &StoreCreateLFSObjectFunc{
 			defaultHook: func(context.Context, int64, lfsx.OID, int64, lfsx.Storage) error {
 				panic("unexpected invocation of MockStore.CreateLFSObject")
@@ -147,9 +184,19 @@ func NewStrictMockStore() *MockStore {
 				panic("unexpected invocation of MockStore.CreateUser")
 			},
 		},
+		DeleteLFSLockByIDFunc: &StoreDeleteLFSLockByIDFunc{
+			defaultHook: func(context.Context, int64, string, int64, bool) (*database.LFSLock, error) {
+				panic("unexpected invocation of MockStore.DeleteLFSLockByID")
+			},
+		},
 		GetAccessTokenBySHA1Func: &StoreGetAccessTokenBySHA1Func{
 			defaultHook: func(context.Context, string) (*database.AccessToken, error) {
 				panic("unexpected invocation of MockStore.GetAccessTokenBySHA1")
+			},
+		},
+		GetLFSLockByIDFunc: &StoreGetLFSLockByIDFunc{
+			defaultHook: func(context.Context, int64, string) (*database.LFSLock, error) {
+				panic("unexpected invocation of MockStore.GetLFSLockByID")
 			},
 		},
 		GetLFSObjectByOIDFunc: &StoreGetLFSObjectByOIDFunc{
@@ -182,6 +229,11 @@ func NewStrictMockStore() *MockStore {
 				panic("unexpected invocation of MockStore.IsTwoFactorEnabled")
 			},
 		},
+		ListLFSLocksFunc: &StoreListLFSLocksFunc{
+			defaultHook: func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error) {
+				panic("unexpected invocation of MockStore.ListLFSLocks")
+			},
+		},
 		TouchAccessTokenByIDFunc: &StoreTouchAccessTokenByIDFunc{
 			defaultHook: func(context.Context, int64) error {
 				panic("unexpected invocation of MockStore.TouchAccessTokenByID")
@@ -200,14 +252,23 @@ func NewMockStoreFrom(i Store) *MockStore {
 		AuthorizeRepositoryAccessFunc: &StoreAuthorizeRepositoryAccessFunc{
 			defaultHook: i.AuthorizeRepositoryAccess,
 		},
+		CreateLFSLockFunc: &StoreCreateLFSLockFunc{
+			defaultHook: i.CreateLFSLock,
+		},
 		CreateLFSObjectFunc: &StoreCreateLFSObjectFunc{
 			defaultHook: i.CreateLFSObject,
 		},
 		CreateUserFunc: &StoreCreateUserFunc{
 			defaultHook: i.CreateUser,
 		},
+		DeleteLFSLockByIDFunc: &StoreDeleteLFSLockByIDFunc{
+			defaultHook: i.DeleteLFSLockByID,
+		},
 		GetAccessTokenBySHA1Func: &StoreGetAccessTokenBySHA1Func{
 			defaultHook: i.GetAccessTokenBySHA1,
+		},
+		GetLFSLockByIDFunc: &StoreGetLFSLockByIDFunc{
+			defaultHook: i.GetLFSLockByID,
 		},
 		GetLFSObjectByOIDFunc: &StoreGetLFSObjectByOIDFunc{
 			defaultHook: i.GetLFSObjectByOID,
@@ -226,6 +287,9 @@ func NewMockStoreFrom(i Store) *MockStore {
 		},
 		IsTwoFactorEnabledFunc: &StoreIsTwoFactorEnabledFunc{
 			defaultHook: i.IsTwoFactorEnabled,
+		},
+		ListLFSLocksFunc: &StoreListLFSLocksFunc{
+			defaultHook: i.ListLFSLocks,
 		},
 		TouchAccessTokenByIDFunc: &StoreTouchAccessTokenByIDFunc{
 			defaultHook: i.TouchAccessTokenByID,
@@ -463,6 +527,119 @@ func (c StoreAuthorizeRepositoryAccessFuncCall) Results() []interface{} {
 	return []interface{}{c.Result0}
 }
 
+// StoreCreateLFSLockFunc describes the behavior when the CreateLFSLock
+// method of the parent MockStore instance is invoked.
+type StoreCreateLFSLockFunc struct {
+	defaultHook func(context.Context, int64, string, int64) (*database.LFSLock, error)
+	hooks       []func(context.Context, int64, string, int64) (*database.LFSLock, error)
+	history     []StoreCreateLFSLockFuncCall
+	mutex       sync.Mutex
+}
+
+// CreateLFSLock delegates to the next hook function in the queue and stores
+// the parameter and result values of this invocation.
+func (m *MockStore) CreateLFSLock(v0 context.Context, v1 int64, v2 string, v3 int64) (*database.LFSLock, error) {
+	r0, r1 := m.CreateLFSLockFunc.nextHook()(v0, v1, v2, v3)
+	m.CreateLFSLockFunc.appendCall(StoreCreateLFSLockFuncCall{v0, v1, v2, v3, r0, r1})
+	return r0, r1
+}
+
+// SetDefaultHook sets function that is called when the CreateLFSLock method
+// of the parent MockStore instance is invoked and the hook queue is empty.
+func (f *StoreCreateLFSLockFunc) SetDefaultHook(hook func(context.Context, int64, string, int64) (*database.LFSLock, error)) {
+	f.defaultHook = hook
+}
+
+// PushHook adds a function to the end of hook queue. Each invocation of the
+// CreateLFSLock method of the parent MockStore instance invokes the hook at
+// the front of the queue and discards it. After the queue is empty, the
+// default hook function is invoked for any future action.
+func (f *StoreCreateLFSLockFunc) PushHook(hook func(context.Context, int64, string, int64) (*database.LFSLock, error)) {
+	f.mutex.Lock()
+	f.hooks = append(f.hooks, hook)
+	f.mutex.Unlock()
+}
+
+// SetDefaultReturn calls SetDefaultHook with a function that returns the
+// given values.
+func (f *StoreCreateLFSLockFunc) SetDefaultReturn(r0 *database.LFSLock, r1 error) {
+	f.SetDefaultHook(func(context.Context, int64, string, int64) (*database.LFSLock, error) {
+		return r0, r1
+	})
+}
+
+// PushReturn calls PushHook with a function that returns the given values.
+func (f *StoreCreateLFSLockFunc) PushReturn(r0 *database.LFSLock, r1 error) {
+	f.PushHook(func(context.Context, int64, string, int64) (*database.LFSLock, error) {
+		return r0, r1
+	})
+}
+
+func (f *StoreCreateLFSLockFunc) nextHook() func(context.Context, int64, string, int64) (*database.LFSLock, error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	if len(f.hooks) == 0 {
+		return f.defaultHook
+	}
+
+	hook := f.hooks[0]
+	f.hooks = f.hooks[1:]
+	return hook
+}
+
+func (f *StoreCreateLFSLockFunc) appendCall(r0 StoreCreateLFSLockFuncCall) {
+	f.mutex.Lock()
+	f.history = append(f.history, r0)
+	f.mutex.Unlock()
+}
+
+// History returns a sequence of StoreCreateLFSLockFuncCall objects
+// describing the invocations of this function.
+func (f *StoreCreateLFSLockFunc) History() []StoreCreateLFSLockFuncCall {
+	f.mutex.Lock()
+	history := make([]StoreCreateLFSLockFuncCall, len(f.history))
+	copy(history, f.history)
+	f.mutex.Unlock()
+
+	return history
+}
+
+// StoreCreateLFSLockFuncCall is an object that describes an invocation of
+// method CreateLFSLock on an instance of MockStore.
+type StoreCreateLFSLockFuncCall struct {
+	// Arg0 is the value of the 1st argument passed to this method
+	// invocation.
+	Arg0 context.Context
+	// Arg1 is the value of the 2nd argument passed to this method
+	// invocation.
+	Arg1 int64
+	// Arg2 is the value of the 3rd argument passed to this method
+	// invocation.
+	Arg2 string
+	// Arg3 is the value of the 4th argument passed to this method
+	// invocation.
+	Arg3 int64
+	// Result0 is the value of the 1st result returned from this method
+	// invocation.
+	Result0 *database.LFSLock
+	// Result1 is the value of the 2nd result returned from this method
+	// invocation.
+	Result1 error
+}
+
+// Args returns an interface slice containing the arguments of this
+// invocation.
+func (c StoreCreateLFSLockFuncCall) Args() []interface{} {
+	return []interface{}{c.Arg0, c.Arg1, c.Arg2, c.Arg3}
+}
+
+// Results returns an interface slice containing the results of this
+// invocation.
+func (c StoreCreateLFSLockFuncCall) Results() []interface{} {
+	return []interface{}{c.Result0, c.Result1}
+}
+
 // StoreCreateLFSObjectFunc describes the behavior when the CreateLFSObject
 // method of the parent MockStore instance is invoked.
 type StoreCreateLFSObjectFunc struct {
@@ -690,6 +867,123 @@ func (c StoreCreateUserFuncCall) Results() []interface{} {
 	return []interface{}{c.Result0, c.Result1}
 }
 
+// StoreDeleteLFSLockByIDFunc describes the behavior when the
+// DeleteLFSLockByID method of the parent MockStore instance is invoked.
+type StoreDeleteLFSLockByIDFunc struct {
+	defaultHook func(context.Context, int64, string, int64, bool) (*database.LFSLock, error)
+	hooks       []func(context.Context, int64, string, int64, bool) (*database.LFSLock, error)
+	history     []StoreDeleteLFSLockByIDFuncCall
+	mutex       sync.Mutex
+}
+
+// DeleteLFSLockByID delegates to the next hook function in the queue and
+// stores the parameter and result values of this invocation.
+func (m *MockStore) DeleteLFSLockByID(v0 context.Context, v1 int64, v2 string, v3 int64, v4 bool) (*database.LFSLock, error) {
+	r0, r1 := m.DeleteLFSLockByIDFunc.nextHook()(v0, v1, v2, v3, v4)
+	m.DeleteLFSLockByIDFunc.appendCall(StoreDeleteLFSLockByIDFuncCall{v0, v1, v2, v3, v4, r0, r1})
+	return r0, r1
+}
+
+// SetDefaultHook sets function that is called when the DeleteLFSLockByID
+// method of the parent MockStore instance is invoked and the hook queue is
+// empty.
+func (f *StoreDeleteLFSLockByIDFunc) SetDefaultHook(hook func(context.Context, int64, string, int64, bool) (*database.LFSLock, error)) {
+	f.defaultHook = hook
+}
+
+// PushHook adds a function to the end of hook queue. Each invocation of the
+// DeleteLFSLockByID method of the parent MockStore instance invokes the
+// hook at the front of the queue and discards it. After the queue is empty,
+// the default hook function is invoked for any future action.
+func (f *StoreDeleteLFSLockByIDFunc) PushHook(hook func(context.Context, int64, string, int64, bool) (*database.LFSLock, error)) {
+	f.mutex.Lock()
+	f.hooks = append(f.hooks, hook)
+	f.mutex.Unlock()
+}
+
+// SetDefaultReturn calls SetDefaultHook with a function that returns the
+// given values.
+func (f *StoreDeleteLFSLockByIDFunc) SetDefaultReturn(r0 *database.LFSLock, r1 error) {
+	f.SetDefaultHook(func(context.Context, int64, string, int64, bool) (*database.LFSLock, error) {
+		return r0, r1
+	})
+}
+
+// PushReturn calls PushHook with a function that returns the given values.
+func (f *StoreDeleteLFSLockByIDFunc) PushReturn(r0 *database.LFSLock, r1 error) {
+	f.PushHook(func(context.Context, int64, string, int64, bool) (*database.LFSLock, error) {
+		return r0, r1
+	})
+}
+
+func (f *StoreDeleteLFSLockByIDFunc) nextHook() func(context.Context, int64, string, int64, bool) (*database.LFSLock, error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	if len(f.hooks) == 0 {
+		return f.defaultHook
+	}
+
+	hook := f.hooks[0]
+	f.hooks = f.hooks[1:]
+	return hook
+}
+
+func (f *StoreDeleteLFSLockByIDFunc) appendCall(r0 StoreDeleteLFSLockByIDFuncCall) {
+	f.mutex.Lock()
+	f.history = append(f.history, r0)
+	f.mutex.Unlock()
+}
+
+// History returns a sequence of StoreDeleteLFSLockByIDFuncCall objects
+// describing the invocations of this function.
+func (f *StoreDeleteLFSLockByIDFunc) History() []StoreDeleteLFSLockByIDFuncCall {
+	f.mutex.Lock()
+	history := make([]StoreDeleteLFSLockByIDFuncCall, len(f.history))
+	copy(history, f.history)
+	f.mutex.Unlock()
+
+	return history
+}
+
+// StoreDeleteLFSLockByIDFuncCall is an object that describes an invocation
+// of method DeleteLFSLockByID on an instance of MockStore.
+type StoreDeleteLFSLockByIDFuncCall struct {
+	// Arg0 is the value of the 1st argument passed to this method
+	// invocation.
+	Arg0 context.Context
+	// Arg1 is the value of the 2nd argument passed to this method
+	// invocation.
+	Arg1 int64
+	// Arg2 is the value of the 3rd argument passed to this method
+	// invocation.
+	Arg2 string
+	// Arg3 is the value of the 4th argument passed to this method
+	// invocation.
+	Arg3 int64
+	// Arg4 is the value of the 5th argument passed to this method
+	// invocation.
+	Arg4 bool
+	// Result0 is the value of the 1st result returned from this method
+	// invocation.
+	Result0 *database.LFSLock
+	// Result1 is the value of the 2nd result returned from this method
+	// invocation.
+	Result1 error
+}
+
+// Args returns an interface slice containing the arguments of this
+// invocation.
+func (c StoreDeleteLFSLockByIDFuncCall) Args() []interface{} {
+	return []interface{}{c.Arg0, c.Arg1, c.Arg2, c.Arg3, c.Arg4}
+}
+
+// Results returns an interface slice containing the results of this
+// invocation.
+func (c StoreDeleteLFSLockByIDFuncCall) Results() []interface{} {
+	return []interface{}{c.Result0, c.Result1}
+}
+
 // StoreGetAccessTokenBySHA1Func describes the behavior when the
 // GetAccessTokenBySHA1 method of the parent MockStore instance is invoked.
 type StoreGetAccessTokenBySHA1Func struct {
@@ -795,6 +1089,117 @@ func (c StoreGetAccessTokenBySHA1FuncCall) Args() []interface{} {
 // Results returns an interface slice containing the results of this
 // invocation.
 func (c StoreGetAccessTokenBySHA1FuncCall) Results() []interface{} {
+	return []interface{}{c.Result0, c.Result1}
+}
+
+// StoreGetLFSLockByIDFunc describes the behavior when the GetLFSLockByID
+// method of the parent MockStore instance is invoked.
+type StoreGetLFSLockByIDFunc struct {
+	defaultHook func(context.Context, int64, string) (*database.LFSLock, error)
+	hooks       []func(context.Context, int64, string) (*database.LFSLock, error)
+	history     []StoreGetLFSLockByIDFuncCall
+	mutex       sync.Mutex
+}
+
+// GetLFSLockByID delegates to the next hook function in the queue and
+// stores the parameter and result values of this invocation.
+func (m *MockStore) GetLFSLockByID(v0 context.Context, v1 int64, v2 string) (*database.LFSLock, error) {
+	r0, r1 := m.GetLFSLockByIDFunc.nextHook()(v0, v1, v2)
+	m.GetLFSLockByIDFunc.appendCall(StoreGetLFSLockByIDFuncCall{v0, v1, v2, r0, r1})
+	return r0, r1
+}
+
+// SetDefaultHook sets function that is called when the GetLFSLockByID
+// method of the parent MockStore instance is invoked and the hook queue is
+// empty.
+func (f *StoreGetLFSLockByIDFunc) SetDefaultHook(hook func(context.Context, int64, string) (*database.LFSLock, error)) {
+	f.defaultHook = hook
+}
+
+// PushHook adds a function to the end of hook queue. Each invocation of the
+// GetLFSLockByID method of the parent MockStore instance invokes the hook
+// at the front of the queue and discards it. After the queue is empty, the
+// default hook function is invoked for any future action.
+func (f *StoreGetLFSLockByIDFunc) PushHook(hook func(context.Context, int64, string) (*database.LFSLock, error)) {
+	f.mutex.Lock()
+	f.hooks = append(f.hooks, hook)
+	f.mutex.Unlock()
+}
+
+// SetDefaultReturn calls SetDefaultHook with a function that returns the
+// given values.
+func (f *StoreGetLFSLockByIDFunc) SetDefaultReturn(r0 *database.LFSLock, r1 error) {
+	f.SetDefaultHook(func(context.Context, int64, string) (*database.LFSLock, error) {
+		return r0, r1
+	})
+}
+
+// PushReturn calls PushHook with a function that returns the given values.
+func (f *StoreGetLFSLockByIDFunc) PushReturn(r0 *database.LFSLock, r1 error) {
+	f.PushHook(func(context.Context, int64, string) (*database.LFSLock, error) {
+		return r0, r1
+	})
+}
+
+func (f *StoreGetLFSLockByIDFunc) nextHook() func(context.Context, int64, string) (*database.LFSLock, error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	if len(f.hooks) == 0 {
+		return f.defaultHook
+	}
+
+	hook := f.hooks[0]
+	f.hooks = f.hooks[1:]
+	return hook
+}
+
+func (f *StoreGetLFSLockByIDFunc) appendCall(r0 StoreGetLFSLockByIDFuncCall) {
+	f.mutex.Lock()
+	f.history = append(f.history, r0)
+	f.mutex.Unlock()
+}
+
+// History returns a sequence of StoreGetLFSLockByIDFuncCall objects
+// describing the invocations of this function.
+func (f *StoreGetLFSLockByIDFunc) History() []StoreGetLFSLockByIDFuncCall {
+	f.mutex.Lock()
+	history := make([]StoreGetLFSLockByIDFuncCall, len(f.history))
+	copy(history, f.history)
+	f.mutex.Unlock()
+
+	return history
+}
+
+// StoreGetLFSLockByIDFuncCall is an object that describes an invocation of
+// method GetLFSLockByID on an instance of MockStore.
+type StoreGetLFSLockByIDFuncCall struct {
+	// Arg0 is the value of the 1st argument passed to this method
+	// invocation.
+	Arg0 context.Context
+	// Arg1 is the value of the 2nd argument passed to this method
+	// invocation.
+	Arg1 int64
+	// Arg2 is the value of the 3rd argument passed to this method
+	// invocation.
+	Arg2 string
+	// Result0 is the value of the 1st result returned from this method
+	// invocation.
+	Result0 *database.LFSLock
+	// Result1 is the value of the 2nd result returned from this method
+	// invocation.
+	Result1 error
+}
+
+// Args returns an interface slice containing the arguments of this
+// invocation.
+func (c StoreGetLFSLockByIDFuncCall) Args() []interface{} {
+	return []interface{}{c.Arg0, c.Arg1, c.Arg2}
+}
+
+// Results returns an interface slice containing the results of this
+// invocation.
+func (c StoreGetLFSLockByIDFuncCall) Results() []interface{} {
 	return []interface{}{c.Result0, c.Result1}
 }
 
@@ -1456,6 +1861,125 @@ func (c StoreIsTwoFactorEnabledFuncCall) Args() []interface{} {
 // invocation.
 func (c StoreIsTwoFactorEnabledFuncCall) Results() []interface{} {
 	return []interface{}{c.Result0}
+}
+
+// StoreListLFSLocksFunc describes the behavior when the ListLFSLocks method
+// of the parent MockStore instance is invoked.
+type StoreListLFSLocksFunc struct {
+	defaultHook func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error)
+	hooks       []func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error)
+	history     []StoreListLFSLocksFuncCall
+	mutex       sync.Mutex
+}
+
+// ListLFSLocks delegates to the next hook function in the queue and stores
+// the parameter and result values of this invocation.
+func (m *MockStore) ListLFSLocks(v0 context.Context, v1 int64, v2 string, v3 string, v4 int) ([]*database.LFSLock, string, error) {
+	r0, r1, r2 := m.ListLFSLocksFunc.nextHook()(v0, v1, v2, v3, v4)
+	m.ListLFSLocksFunc.appendCall(StoreListLFSLocksFuncCall{v0, v1, v2, v3, v4, r0, r1, r2})
+	return r0, r1, r2
+}
+
+// SetDefaultHook sets function that is called when the ListLFSLocks method
+// of the parent MockStore instance is invoked and the hook queue is empty.
+func (f *StoreListLFSLocksFunc) SetDefaultHook(hook func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error)) {
+	f.defaultHook = hook
+}
+
+// PushHook adds a function to the end of hook queue. Each invocation of the
+// ListLFSLocks method of the parent MockStore instance invokes the hook at
+// the front of the queue and discards it. After the queue is empty, the
+// default hook function is invoked for any future action.
+func (f *StoreListLFSLocksFunc) PushHook(hook func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error)) {
+	f.mutex.Lock()
+	f.hooks = append(f.hooks, hook)
+	f.mutex.Unlock()
+}
+
+// SetDefaultReturn calls SetDefaultHook with a function that returns the
+// given values.
+func (f *StoreListLFSLocksFunc) SetDefaultReturn(r0 []*database.LFSLock, r1 string, r2 error) {
+	f.SetDefaultHook(func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error) {
+		return r0, r1, r2
+	})
+}
+
+// PushReturn calls PushHook with a function that returns the given values.
+func (f *StoreListLFSLocksFunc) PushReturn(r0 []*database.LFSLock, r1 string, r2 error) {
+	f.PushHook(func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error) {
+		return r0, r1, r2
+	})
+}
+
+func (f *StoreListLFSLocksFunc) nextHook() func(context.Context, int64, string, string, int) ([]*database.LFSLock, string, error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	if len(f.hooks) == 0 {
+		return f.defaultHook
+	}
+
+	hook := f.hooks[0]
+	f.hooks = f.hooks[1:]
+	return hook
+}
+
+func (f *StoreListLFSLocksFunc) appendCall(r0 StoreListLFSLocksFuncCall) {
+	f.mutex.Lock()
+	f.history = append(f.history, r0)
+	f.mutex.Unlock()
+}
+
+// History returns a sequence of StoreListLFSLocksFuncCall objects
+// describing the invocations of this function.
+func (f *StoreListLFSLocksFunc) History() []StoreListLFSLocksFuncCall {
+	f.mutex.Lock()
+	history := make([]StoreListLFSLocksFuncCall, len(f.history))
+	copy(history, f.history)
+	f.mutex.Unlock()
+
+	return history
+}
+
+// StoreListLFSLocksFuncCall is an object that describes an invocation of
+// method ListLFSLocks on an instance of MockStore.
+type StoreListLFSLocksFuncCall struct {
+	// Arg0 is the value of the 1st argument passed to this method
+	// invocation.
+	Arg0 context.Context
+	// Arg1 is the value of the 2nd argument passed to this method
+	// invocation.
+	Arg1 int64
+	// Arg2 is the value of the 3rd argument passed to this method
+	// invocation.
+	Arg2 string
+	// Arg3 is the value of the 4th argument passed to this method
+	// invocation.
+	Arg3 string
+	// Arg4 is the value of the 5th argument passed to this method
+	// invocation.
+	Arg4 int
+	// Result0 is the value of the 1st result returned from this method
+	// invocation.
+	Result0 []*database.LFSLock
+	// Result1 is the value of the 2nd result returned from this method
+	// invocation.
+	Result1 string
+	// Result2 is the value of the 3rd result returned from this method
+	// invocation.
+	Result2 error
+}
+
+// Args returns an interface slice containing the arguments of this
+// invocation.
+func (c StoreListLFSLocksFuncCall) Args() []interface{} {
+	return []interface{}{c.Arg0, c.Arg1, c.Arg2, c.Arg3, c.Arg4}
+}
+
+// Results returns an interface slice containing the results of this
+// invocation.
+func (c StoreListLFSLocksFuncCall) Results() []interface{} {
+	return []interface{}{c.Result0, c.Result1, c.Result2}
 }
 
 // StoreTouchAccessTokenByIDFunc describes the behavior when the

@@ -42,7 +42,7 @@ var Tables = []any{
 	new(Access), new(AccessToken), new(Action),
 	new(EmailAddress),
 	new(Follow),
-	new(LFSObject), new(LoginSource),
+	new(LFSLock), new(LFSObject), new(LoginSource),
 	new(Notice),
 }
 
@@ -148,6 +148,11 @@ func (db *DB) Actions() *ActionsStore {
 
 func (db *DB) LFS() *LFSStore {
 	return newLFSStore(db.db)
+}
+
+// LFSLocks returns the LFSLockStore.
+func (db *DB) LFSLocks() *LFSLockStore {
+	return newLFSLockStore(db.db)
 }
 
 // NOTE: It is not guarded by a mutex because it only gets written during the
